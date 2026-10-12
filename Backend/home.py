@@ -1,4 +1,6 @@
 import os
+from openai import OpenAI
+from dotenv import load_dotenv
 import re
 import sys
 from flask import Flask, request, jsonify, send_from_directory
@@ -7,89 +9,61 @@ from flask_cors import CORS
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "Forntend"))
 
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+load_dotenv()
+
+# Initialize OpenAI client with API key from .env
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key) if api_key else None
+
 # Initialize Flask application
 app = Flask(__name__, static_folder=FRONTEND_DIR)
 # Enable CORS so your frontend (home.html) can send requests from browser
 CORS(app)
 
+SYSTEM_PROMPT = """You are a polite, helpful, and professional Customer Support Assistant for SLT-Mobitel.
+Your role is to assist customers with:
+- Broadband and Fibre packages (speeds, unlimited plans, web family, gaming packages)
+- Bill payments and account inquiries (MySLT app, online portal at myslt.slt.lk, e-billing)
+- PEO TV packages, channels, and activation
+- Mobitel mobile services (prepaid, postpaid, eSIM, #170# selfcare)
+- Router troubleshooting (restarting router, checking LOS red light / PON green light)
+- Customer support hotlines (SLT: 1212, Mobitel: 1717, WhatsApp: +94 70 599 9999)
+
+Guidelines:
+- Provide clear, concise, and structured answers (use bullet points where appropriate).
+- If the user has a technical fault, guide them step-by-step and provide hotline numbers if unresolved.
+- Maintain a courteous and friendly tone.
+"""
 
 
 def get_bot_response(user_message: str) -> str:
-    
-    message = user_message.lower().strip()
+    message = user_message.strip()
 
     if not message:
         return "Please type a message so I can help you."
 
-    if re.search(r"\b(hi|hello|hey|greetings|good morning|good afternoon|good evening)\b", message):
+    if not client:
         return (
-            "Hello! Welcome to Customer Support. "
-            "How can I help you today?"
+            "⚠️ OpenAI API key is missing. Please add OPENAI_API_KEY to your Backend/.env file."
         )
 
-    elif re.search(r"\b(fiber|fibre|package|packages|broadband|internet|unlimited|speed|data)\b", message):
-        return (
-            "SLT-Mobitel offers high-speed Fibre broadband packages:\n"
-            "• Fibre Unlimited (Flash 10, Flash 25, Unlimited Entertainment)\n"
-            "• Web Starter & Web Family packages\n"
-            "• Work & Learn / Gaming add-on bundles\n"
-            "Visit https://www.slt.lk/broadband or open the MySLT app for full package details."
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": message}
+            ],
+            temperature=0.7,
+            max_tokens=400
         )
-
-    elif re.search(r"\b(bill|billing|pay|payment|due|balance|reload)\b", message):
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"OpenAI API error: {e}")
         return (
-            "You can view and pay your SLT-Mobitel bills through:\n"
-            "• MySLT Mobile App (Android / iOS)\n"
-            "• Online Portal: https://myslt.slt.lk\n"
-            "• E-bill registration via SMS or email\n"
-            "• Any SLT Teleshop, regional telecom office, or online banking."
-        )
-
-    elif re.search(r"\b(peo|peotv|peo tv|tv|channels|channel)\b", message):
-        return (
-            "SLT PEO TV provides crystal-clear HD channels, video-on-demand, and rewind TV.\n"
-            "Packages include Titanium, Gold, Silver, and Bronze.\n"
-            "To activate new channels or packages, visit the MySLT app or call 1212."
-        )
-
-    elif re.search(r"\b(mobitel|sim|esim|mobile|4g|5g|postpaid|prepaid|roaming)\b", message):
-        return (
-            "For Mobitel mobile services:\n"
-            "• Prepaid & Postpaid data/voice plans\n"
-            "• eSIM activation available at all Mobitel branches\n"
-            "• Dial #170# for self-care services or download the Mobitel Selfcare App."
-        )
-
-    elif re.search(r"\b(slow|not working|broken|fault|red light|los|pon|router|wifi|wi-fi|disconnected|issue)\b", message):
-        return (
-            "Quick troubleshooting steps for your connection:\n"
-            "1. Restart your router (turn off, wait 30 seconds, turn back on).\n"
-            "2. Check the 'LOS' light: if it's blinking red, there is a fiber cable issue.\n"
-            "3. Ensure the 'PON' light is solid green.\n"
-            "To report a technical fault, dial 1212 or submit a fault ticket via the MySLT app."
-        )
-
-    elif re.search(r"\b(hotline|call|contact|agent|human|customer care|number|help|support)\b", message):
-        return (
-            "You can reach SLT-Mobitel customer support 24/7:\n"
-            "• SLT Hotline: 1212\n"
-            "• Mobitel Hotline: 1717\n"
-            "• WhatsApp Support: +94 70 599 9999\n"
-            "• Email: info@slt.com.lk"
-        )
-
-    elif re.search(r"\b(thanks|thank you|bye|goodbye|cya)\b", message):
-        return "Thank you for contacting Us! Have a wonderful day!"
-
-    else:
-        return (
-            "I'm sorry, I didn't quite catch that. "
-            "You can ask me about:\n"
-            "1. Fibre / Broadband packages\n"
-            "2. Bill payments & balance\n"
-            "3. PEO TV\n"
-            "4. Router & connection issues\n"
-            "5. Contact hotline numbers"
+            "I'm sorry, I am currently having trouble connecting to AI services. "
+            "Please try again in a moment, or contact our 24/7 hotline at 1212 for urgent assistance."
         )
 
 

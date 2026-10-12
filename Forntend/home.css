@@ -145,7 +145,6 @@ body {
     border-bottom-left-radius: 4px;
 }
 
-/* Typing Indicator Animation */
 .typing-indicator {
     display: flex;
     align-items: center;
@@ -176,7 +175,6 @@ body {
     }
 }
 
-/* Suggestion Pills */
 .suggestions {
     display: flex;
     gap: 8px;
@@ -210,7 +208,6 @@ body {
     transform: translateY(-1px);
 }
 
-/* Input Area */
 .chat-input-bar {
     display: flex;
     align-items: center;
