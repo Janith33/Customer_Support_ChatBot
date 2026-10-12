@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLT-Mobitel Chatbot</title>
+    <link rel="stylesheet" href="home.css">
+    <!--<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">-->
+</head>
+<body>
+    <div class="container1">
+        <div class="chat-container">
+            
+            
+            <div class="chat-header1">
+                <div class="header-avatar">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <div class="header-info">
+                    <h2>Customer Assistant</h2>
+                    <span class="status-indicator">
+                        <span class="status-dot"></span> Online 24/7 Support
+                    </span>
+                </div>
+            </div>
+
+            <div class="chat-box">
+                <div class="message bot-message">
+                    <div class="message-content">
+                        Hello! Welcome to <strong>Customer Support</strong>.<br><br>
+                        How can I assist you today?
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="suggestions">
+                <button class="chip" onclick="sendQuickMessage('Fibre packages')">Fibre Packages</button>
+                <button class="chip" onclick="sendQuickMessage('How to pay my bill?')">Bill Payment</button>
+                <button class="chip" onclick="sendQuickMessage('PEO TV packages')">PEO TV</button>
+                <button class="chip" onclick="sendQuickMessage('Router red light issue')">Router Help</button>
+                <button class="chip" onclick="sendQuickMessage('Customer hotline')">Hotline</button>
+            </div>
+
+            <div class="chat-input-bar">
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    placeholder="Type your message here..." 
+                    autocomplete="off"
+                >
+                <button class="send-btn" title="Send message">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        const API_URL = (window.location.origin.includes('5000')) 
+            ? '/api/chat' 
+            : 'http://127.0.0.1:5000/api/chat';
+
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function appendMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
+
+            const contentDiv = document.createElement('div');
+            contentDiv.classList.add('message-content');
+            
+            contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+
+            messageDiv.appendChild(contentDiv);
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.classList.add('message', 'bot-message');
+            typingDiv.id = 'typingIndicator';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.classList.add('message-content', 'typing-indicator');
+            contentDiv.innerHTML = '<span></span><span></span><span></span>';
+
+            typingDiv.appendChild(contentDiv);
+            chatBox.appendChild(typingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // Send message to the Python backend
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            // 1. Add user message to UI
+            appendMessage(text, 'user');
+            userInput.value = '';
+            userInput.focus();
+
+            // 2. Show typing animation
+            showTypingIndicator();
+
+            try {
+                // 3. Send POST request to Python Flask Backend
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: text })
+                });
+
+                removeTypingIndicator();
+
+                if (!response.ok) {
+                    throw new Error(`Server returned status ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // 4. Display bot response
+                if (data && data.reply) {
+                    appendMessage(data.reply, 'bot');
+                } else {
+                    appendMessage("Received an empty response from server.", 'bot');
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                removeTypingIndicator();
+                appendMessage(
+                    "⚠️ Unable to connect to the Python backend.\n" +
+                    "Please ensure the server is running by running:\n" +
+                    "python Backend/home.py", 
+                    'bot'
+                );
+            }
+        }
+
+        // Function for quick suggestion buttons
+        function sendQuickMessage(text) {
+            userInput.value = text;
+            sendMessage();
+        }
+
+        // Event Listeners
+        sendBtn.addEventListener('click', sendMessage);
+
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
