@@ -12,13 +12,10 @@ FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "Forntend"))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 load_dotenv()
 
-# Initialize OpenAI client with API key from .env
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key) if api_key else None
 
-# Initialize Flask application
 app = Flask(__name__, static_folder=FRONTEND_DIR)
-# Enable CORS so your frontend (home.html) can send requests from browser
 CORS(app)
 
 SYSTEM_PROMPT = """You are a polite, helpful, and professional Customer Support Assistant for SLT-Mobitel.
@@ -126,11 +123,9 @@ def run_cli():
 
 
 if __name__ == "__main__":
-    # If run with '--cli', run the terminal chat
     if len(sys.argv) > 1 and sys.argv[1] == "--cli":
         run_cli()
     else:
-        # Default: start the web API server on port 5000
         print("Starting SLT Chatbot Flask server on http://127.0.0.1:5000 ...")
         print("Run with 'python home.py --cli' if you want terminal chat mode.")
         app.run(host="127.0.0.1", port=5000, debug=True)
