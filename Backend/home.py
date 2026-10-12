@@ -9,16 +9,24 @@ from flask_cors import CORS
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "Forntend"))
 
-load_dotenv(os.path.join(BASE_DIR, ".env"))
-load_dotenv()
+# Load environment variables from Backend/.env with override=True
+load_dotenv(os.path.join(BASE_DIR, ".env"), override=True)
+load_dotenv(override=True)
 
+# Initialize OpenAI client with API key from .env
 api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key) if api_key else None
+
+# Check if an OpenRouter key was provided (starts with sk-or-v1)
+is_openrouter = bool(api_key and api_key.startswith("sk-or-v1"))
+base_url = "https://openrouter.ai/api/v1" if is_openrouter else None
+
+client = OpenAI(api_key=api_key, base_url=base_url) if api_key else None
+DEFAULT_MODEL = "meta-llama/llama-3.2-3b-instruct:free" if is_openrouter else "gpt-4o-mini"
 
 app = Flask(__name__, static_folder=FRONTEND_DIR)
 CORS(app)
 
-SYSTEM_PROMPT = """You are a polite, helpful, and professional Customer Support Assistant for SLT-Mobitel.
+SYSTEM_PROMPT = """You are a polite, helpful, and professional Customer Support Assistant.
 Your role is to assist customers with:
 - Broadband and Fibre packages (speeds, unlimited plans, web family, gaming packages)
 - Bill payments and account inquiries (MySLT app, online portal at myslt.slt.lk, e-billing)
@@ -47,7 +55,7 @@ def get_bot_response(user_message: str) -> str:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=DEFAULT_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": message}
@@ -57,7 +65,16 @@ def get_bot_response(user_message: str) -> str:
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"OpenAI API error: {e}")
+        err_msg = str(e)
+        print(f"AI API error: {err_msg}")
+        if "credit_balance_exhausted" in err_msg or "insufficient_quota" in err_msg:
+            return (
+                "⚠️ OpenAI account has zero credits remaining.\n"
+                "Please add credits at https://platform.openai.com/settings/organization/billing/ "
+                "or use an OpenRouter API key."
+            )
+        elif "invalid_api_key" in err_msg or "Incorrect API key" in err_msg:
+            return "⚠️ Invalid API key provided. Please verify the key in Backend/.env."
         return (
             "I'm sorry, I am currently having trouble connecting to AI services. "
             "Please try again in a moment, or contact our 24/7 hotline at 1212 for urgent assistance."
