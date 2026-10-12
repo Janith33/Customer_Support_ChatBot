@@ -9,14 +9,12 @@ from flask_cors import CORS
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "Forntend"))
 
-# Load environment variables from Backend/.env with override=True
+
 load_dotenv(os.path.join(BASE_DIR, ".env"), override=True)
 load_dotenv(override=True)
 
-# Initialize OpenAI client with API key from .env
 api_key = os.getenv("OPENAI_API_KEY")
 
-# Check if an OpenRouter key was provided (starts with sk-or-v1)
 is_openrouter = bool(api_key and api_key.startswith("sk-or-v1"))
 base_url = "https://openrouter.ai/api/v1" if is_openrouter else None
 
