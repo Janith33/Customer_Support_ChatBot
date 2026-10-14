@@ -61,13 +61,42 @@
 
 
     <script>
-        const API_URL = (window.location.origin.includes('5000')) 
-            ? '/api/chat' 
-            : 'http://127.0.0.1:5000/api/chat';
+        // Support both Flask (5000) and FastAPI (8000) backends
+        function determineApiUrl() {
+            if (window.location.origin.includes('5000') || window.location.origin.includes('8000')) {
+                return '/api/chat';
+            }
+            // If opened directly from filesystem (file://) or live server
+            return 'http://127.0.0.1:5000/api/chat';
+        }
+
+        let API_URL = determineApiUrl();
 
         const chatBox = document.getElementById('chatBox');
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
+        let isWaitingForResponse = false;
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function formatMessageContent(text, sender) {
+            if (sender === 'user') {
+                return escapeHtml(text).replace(/\n/g, '<br>');
+            }
+            // For bot messages: escape raw HTML first to prevent XSS, then format markdown
+            let safe = escapeHtml(text);
+            // Bold **text**
+            safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Bullet points
+            safe = safe.replace(/^[•*-]\s+(.+)$/gm, '• $1');
+            // Line breaks
+            safe = safe.replace(/\n/g, '<br>');
+            return safe;
+        }
 
         function appendMessage(text, sender) {
             const messageDiv = document.createElement('div');
@@ -75,8 +104,7 @@
 
             const contentDiv = document.createElement('div');
             contentDiv.classList.add('message-content');
-            
-            contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            contentDiv.innerHTML = formatMessageContent(text, sender);
 
             messageDiv.appendChild(contentDiv);
             chatBox.appendChild(messageDiv);
@@ -106,22 +134,37 @@
 
         async function sendMessage() {
             const text = userInput.value.trim();
-            if (!text) return;
+            if (!text || isWaitingForResponse) return;
 
             appendMessage(text, 'user');
             userInput.value = '';
-            userInput.focus();
+            isWaitingForResponse = true;
+            sendBtn.disabled = true;
 
             showTypingIndicator();
 
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: text })
-                });
+                let response;
+                try {
+                    response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: text })
+                    });
+                } catch (firstErr) {
+                    // If port 5000 failed and we are on localhost/file, attempt port 8000 fallback
+                    if (API_URL.includes('5000')) {
+                        const fallbackUrl = 'http://127.0.0.1:8000/api/chat';
+                        response = await fetch(fallbackUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: text })
+                        });
+                        API_URL = fallbackUrl;
+                    } else {
+                        throw firstErr;
+                    }
+                }
 
                 removeTypingIndicator();
 
@@ -133,6 +176,8 @@
                 
                 if (data && data.reply) {
                     appendMessage(data.reply, 'bot');
+                } else if (data && data.response) {
+                    appendMessage(data.response, 'bot');
                 } else {
                     appendMessage("Received an empty response from server.", 'bot');
                 }
@@ -140,15 +185,21 @@
                 console.error('Fetch error:', error);
                 removeTypingIndicator();
                 appendMessage(
-                    "⚠️ Unable to connect to the Python backend.\n" +
-                    "Please ensure the server is running by running:\n" +
-                    "python Backend/home.py", 
+                    "⚠️ Unable to connect to the backend server.\n" +
+                    "Please ensure either server is running:\n" +
+                    "• Flask (default): python Backend/home.py (port 5000)\n" +
+                    "• FastAPI (Ollama): python Backend/main.py (port 8000)", 
                     'bot'
                 );
+            } finally {
+                isWaitingForResponse = false;
+                sendBtn.disabled = false;
+                userInput.focus();
             }
         }
 
         function sendQuickMessage(text) {
+            if (isWaitingForResponse) return;
             userInput.value = text;
             sendMessage();
         }
@@ -161,6 +212,11 @@
                 event.preventDefault();
                 sendMessage();
             }
+        });
+
+        // Initial focus
+        window.addEventListener('DOMContentLoaded', () => {
+            userInput.focus();
         });
     </script>
 

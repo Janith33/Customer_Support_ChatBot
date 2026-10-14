@@ -2,12 +2,17 @@
 .env
 Backend/.env
 
-# Python Cache
+# Python Cache & Bytecode
+**/__pycache__/
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual Environments
 env/
 venv/
 ENV/
+.venv/
+
