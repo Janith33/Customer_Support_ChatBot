@@ -16,3 +16,8 @@ venv/
 ENV/
 .venv/
 
+# IDE Configuration
+.idea/
+*.iml
+
+
