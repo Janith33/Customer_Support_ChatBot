@@ -1,6 +1,6 @@
 # Customer Support ChatBot
 
-An intelligent customer support chatbot designed for telecommunication services (broadband, fibre packages, bill payments, PEO TV, Mobitel services, and router troubleshooting).
+An intelligent customer support chatbot designed for telecommunication services (broadband, fibre packages, bill payments, TV connections, Mobile services, and router troubleshooting).
 
 ## 📁 Project Structure
 
@@ -37,7 +37,6 @@ OLLAMA_MODEL=llama3
 # OPENAI_API_KEY=sk-...
 ```
 
----
 
 ## 🏃 Running the Application
 
