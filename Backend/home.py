@@ -103,7 +103,25 @@ def get_bot_response(user_message: str) -> str:
         try:
             return ollama_service.generate(prompt=message, system=SYSTEM_PROMPT)
         except Exception as ollama_err:
+            err_text = str(ollama_err).lower()
             print(f"Ollama generation error: {ollama_err}")
+            if "out-of-memory" in err_text or "allocate" in err_text or "buffer" in err_text:
+                return (
+                    f"⚠️ Local AI (Ollama) ran out of memory loading '{ollama_service.model}'.\n\n"
+                    "Your computer does not have enough free RAM to run the 8B model.\n\n"
+                    "👉 Recommended fix:\n"
+                    "1. Use a lighter model like llama3.2 (3B or 1B):\n"
+                    "   • In terminal run: ollama run llama3.2\n"
+                    "   • In Backend/.env set: OLLAMA_MODEL=llama3.2\n"
+                    "2. Or use a free OpenRouter key (https://openrouter.ai/keys) in Backend/.env:\n"
+                    "   • OPENAI_API_KEY=sk-or-v1-..."
+                )
+            if "not found" in err_text or "pull" in err_text:
+                return (
+                    f"⚠️ Model '{ollama_service.model}' was not found in Ollama.\n\n"
+                    f"Please run `ollama run {ollama_service.model}` in your terminal to download it."
+                )
+            return f"⚠️ Ollama error: {ollama_err}"
 
     # 3. Informative error messages if neither service responded
     if not api_key:
