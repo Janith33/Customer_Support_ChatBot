@@ -16,6 +16,9 @@ class OllamaService:
         self.host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.client = ollama.Client(host=self.host)
 
+        self.num_ctx = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
+        self.kv_cache_type = os.getenv("OLLAMA_KV_CACHE_TYPE", "q8_0")
+
     def is_available(self) -> bool:
         """Check if local Ollama daemon is running and reachable."""
         try:
@@ -32,7 +35,12 @@ class OllamaService:
         messages.append({"role": "user", "content": prompt})
 
         try:
-            response = self.client.chat(model=self.model, messages=messages)
+            response = self.client.chat(model=self.model, messages=messages,
+            options={
+                "num_ctx": self.num_ctx,
+                "kv_cache_type": self.kv_cache_type,
+            
+            },)
             if hasattr(response, "message") and hasattr(response.message, "content"):
                 return response.message.content
             return response["message"]["content"]
@@ -48,7 +56,12 @@ class OllamaService:
     def chat(self, messages: list) -> str:
         """Multi-turn chat with friendly error handling."""
         try:
-            response = self.client.chat(model=self.model, messages=messages)
+            response = self.client.chat(model=self.model, messages=messages,
+            options={
+                "num_ctx": self.num_ctx,
+                "kv_cache_type": self.kv_cache_type,
+                
+            },)
             if hasattr(response, "message") and hasattr(response.message, "content"):
                 return response.message.content
             return response["message"]["content"]
@@ -67,7 +80,12 @@ class OllamaService:
             for chunk in self.client.chat(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                stream=True
+                stream=True,
+                options={
+                    "num_ctx": self.num_ctx,
+                    "kv_cache_type": self.kv_cache_type,
+                    
+                },
             ):
                 if hasattr(chunk, "message") and hasattr(chunk.message, "content"):
                     yield chunk.message.content
@@ -81,4 +99,4 @@ class OllamaService:
                 yield f"[Error: {err_text}]"
 
 
-ollama_service = OllamaService()
+ollama_service = OllamaService()
